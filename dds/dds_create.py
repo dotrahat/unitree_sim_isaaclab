@@ -11,6 +11,13 @@ def create_dds_objects(args_cli,env):
         dds_manager.register_object("g129", g1_robot)
         publish_names.append("g129")
         subscribe_names.append("g129")
+
+    if args_cli.robot_type=="g123":
+        from dds.g1_robot_dds import G1RobotDDS
+        g1_robot = G1RobotDDS()
+        dds_manager.register_object("g123", g1_robot)
+        publish_names.append("g123")
+        subscribe_names.append("g123")
     if args_cli.enable_dex3_dds:
         from dds.dex3_dds import Dex3DDS
         dex3 = Dex3DDS() 
@@ -29,6 +36,12 @@ def create_dds_objects(args_cli,env):
         dds_manager.register_object("inspire", inspire)
         publish_names.append("inspire")
         subscribe_names.append("inspire")
+    elif args_cli.enable_brainco_dds:
+        from dds.brainco_dds import BraincoDDS
+        brainco = BraincoDDS()
+        dds_manager.register_object("brainco", brainco)
+        publish_names.append("brainco")
+        subscribe_names.append("brainco")
     if "Wholebody" in args_cli.task or args_cli.enable_wholebody_dds:
         from dds.commands_dds import RunCommandDDS
         run_command_dds = RunCommandDDS()
@@ -61,6 +74,14 @@ def create_dds_objects_replay(args_cli,env):
         dds_manager.register_object("g129", g1_robot)
         publish_names.append("g129")
         subscribe_names.append("g129")
+
+    if args_cli.robot_type=="g123":
+        from dds.g1_robot_dds import G1RobotDDS
+        g1_robot = G1RobotDDS()
+        dds_manager.register_object("g123", g1_robot)
+        publish_names.append("g123")
+        subscribe_names.append("g123")
+
     if args_cli.enable_dex3_dds:
         from dds.dex3_dds import Dex3DDS
         dex3 = Dex3DDS() 
@@ -79,6 +100,12 @@ def create_dds_objects_replay(args_cli,env):
         dds_manager.register_object("inspire", inspire)
         publish_names.append("inspire")
         subscribe_names.append("inspire")
+    elif args_cli.enable_brainco_dds:
+        from dds.brainco_dds import BraincoDDS
+        brainco = BraincoDDS()
+        dds_manager.register_object("brainco", brainco)
+        publish_names.append("brainco")
+        subscribe_names.append("brainco")
 
     dds_manager.start_publishing(publish_names)
     dds_manager.start_subscribing(subscribe_names)

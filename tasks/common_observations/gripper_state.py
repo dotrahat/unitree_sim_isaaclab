@@ -33,6 +33,9 @@ def get_robot_girl_joint_names() -> list[str]:
     return [
         "right_hand_Joint1_1",
         "left_hand_Joint1_1",
+
+        # 'right_dex1_finger_joint_1',
+        # 'left_dex1_finger_joint_1'
     ]
 
 # global variable to cache the DDS instance

@@ -23,14 +23,24 @@ class SharedMemoryManager:
                 self.shm = shared_memory.SharedMemory(name=name)
                 self.shm_name = name
                 self.created = False
+                if self.shm.size < size:
+                    # a stale segment from a previous run is smaller than what we need now
+                    self.shm.close()
+                    self.shm.unlink()
+                    self.shm = shared_memory.SharedMemory(create=True, size=size, name=name)
+                    self.shm_name = self.shm.name
+                    self.created = True
             except FileNotFoundError:
-                self.shm = shared_memory.SharedMemory(create=True, size=size)
+                self.shm = shared_memory.SharedMemory(create=True, size=size, name=name)
                 self.shm_name = self.shm.name
                 self.created = True
         else:
             self.shm = shared_memory.SharedMemory(create=True, size=size)
             self.shm_name = self.shm.name
             self.created = True
+
+        # the actual segment may be larger than requested (recreated stale one, or OS rounding)
+        self.size = self.shm.size
     
     def write_data(self, data: Dict[str, Any]) -> bool:
         """Write data to shared memory

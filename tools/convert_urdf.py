@@ -88,15 +88,15 @@ from isaaclab.utils.dict import print_dict
 
 def main():
     # 检查输入文件路径是否有效
-    urdf_path = "/home/unitree/newDisk/URDF/urdf-to-usd/h1_2_inspire/h1_2.urdf" #args_cli.input
+    urdf_path = "/home/cvl/unitree_sim_isaaclab/assets/robots/g1-29dof-brainco-base-fix-usd/URDFs/g1_29dof_mode_15_brainco_hand.urdf"
     print(urdf_path)
     if not os.path.isabs(urdf_path):
         urdf_path = os.path.abspath(urdf_path)
     if not check_file_path(urdf_path):
         raise ValueError(f"无效的文件路径: {urdf_path}")
-    
+
     # 创建输出文件路径
-    dest_path = "/home/unitree/newDisk/URDF/urdf-to-usd/h1_2_inspire/h1_2.urdf.usd"
+    dest_path = "/home/cvl/unitree_sim_isaaclab/assets/robots/g1-29dof-brainco-base-fix-usd/USds/2/g1_29dof_mode_15_brainco_hand.usd"
     if not os.path.isabs(dest_path):
         dest_path = os.path.abspath(dest_path)
 

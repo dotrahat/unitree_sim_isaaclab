@@ -44,8 +44,8 @@ class ObjectTableSceneCfg(TableCylinderSceneCfg):
     robot: ArticulationCfg = G1RobotPresets.g1_29dof_dex3_base_fix()
     # 6. add camera configuration 
     front_camera = CameraPresets.g1_front_camera()
-    left_wrist_camera = CameraPresets.left_dex3_wrist_camera()
-    right_wrist_camera = CameraPresets.right_dex3_wrist_camera()
+    # left_wrist_camera = CameraPresets.left_dex3_wrist_camera()
+    # right_wrist_camera = CameraPresets.right_dex3_wrist_camera()
 
 ##
 # MDP settings

@@ -24,7 +24,8 @@ from teleimager.image_server import run_isaacsim_server
 from dds.dds_create import create_dds_objects,create_dds_objects_replay
 # add command line arguments
 parser = argparse.ArgumentParser(description="Unitree Simulation")
-parser.add_argument("--task", type=str, default="Isaac-PickPlace-G129-Head-Waist-Fix", help="task name")
+# parser.add_argument("--task", type=str, default="Isaac-PickPlace-G129-Head-Waist-Fix", help="task name")
+parser.add_argument("--task", type=str, default="Isaac-PickPlace-Cylinder-G123-Brainco-Joint", help="task name")
 parser.add_argument("--action_source", type=str, default="dds", 
                    choices=["dds", "file", "trajectory", "policy", "replay","dds_wholebody"], 
                    help="Action source")
@@ -34,6 +35,7 @@ parser.add_argument("--robot_type", type=str, default="g129", help="robot type")
 parser.add_argument("--enable_dex1_dds", action="store_true", help="enable gripper DDS")
 parser.add_argument("--enable_dex3_dds", action="store_true", help="enable dexterous hand DDS")
 parser.add_argument("--enable_inspire_dds", action="store_true", help="enable inspire hand DDS")
+parser.add_argument("--enable_brainco_dds",  action="store_true", help="enable BrainCo Revo2 hand DDS")
 parser.add_argument("--stats_interval", type=float, default=10.0, help="statistics print interval (seconds)")
 
 parser.add_argument("--file_path", type=str, default="/home/unitree/Code/xr_teleoperate/teleop/utils/data", help="file path (when action_source=file)")
@@ -46,7 +48,7 @@ parser.add_argument("--modify_light",  action="store_true", default=False, help=
 parser.add_argument("--modify_camera",  action="store_true", default=False,    help="modify camera")
 
 # performance analysis parameters
-parser.add_argument("--step_hz", type=int, default=100, help="control frequency")
+parser.add_argument("--step_hz", type=int, default=60, help="control frequency")
 parser.add_argument("--enable_profiling", action="store_true", default=True, help="enable performance analysis")
 parser.add_argument("--profile_interval", type=int, default=500, help="performance analysis report interval (steps)")
 
@@ -84,8 +86,8 @@ AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
 
-if args_cli.enable_dex3_dds and args_cli.enable_dex1_dds and args_cli.enable_inspire_dds:
-    print("Error: enable_dex3_dds and enable_dex1_dds and enable_inspire_dds cannot be enabled at the same time")
+if args_cli.enable_dex3_dds and args_cli.enable_dex1_dds and args_cli.enable_inspire_dds and args_cli.enable_brainco_dds:
+    print("Error: enable_dex3_dds and enable_dex1_dds and enable_inspire_dds and enable_brainco_dds cannot be enabled at the same time")
     print("Please select one of the options")
     sys.exit(1)
 
@@ -193,6 +195,24 @@ def main():
         except Exception as e:
             print(f"[sim] failed to list sensors: {e}")
         print(f"\ncreate environment success ...")
+        try:
+            robot_asset = env.scene["robot"]
+            per_body_mass = robot_asset.data.default_mass[0]  # env 0, shape (num_bodies,)
+            body_names = robot_asset.body_names
+            total_mass = float(per_body_mass.sum())
+            print(f"[robot mass] total mass: {total_mass:.4f} kg (across {len(body_names)} bodies)")
+            heavy_threshold = 0.5
+            heavy_links = [
+                (name, float(mass)) for name, mass in zip(body_names, per_body_mass)
+                if float(mass) >= heavy_threshold
+            ]
+            if heavy_links:
+                print(f"[robot mass] links >= {heavy_threshold}kg (check for zero-mass-defaulted-to-1kg links):")
+                for name, mass in sorted(heavy_links, key=lambda x: -x[1]):
+                    print(f"    {name}: {mass:.4f} kg")
+            print("=" * 60)
+        except Exception as e:
+            print(f"[robot mass] failed to compute robot mass: {e}")
         try:
             env._reward_interval = max(1, int(args_cli.env_reward_interval))
             env._reward_counter = 0
@@ -671,7 +691,8 @@ if __name__ == "__main__":
 
 # python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Dex1-Wholebody  --robot_type g129 --enable_dex1_dds 
 # python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Dex3-Wholebody  --robot_type g129 --enable_dex3_dds 
-# python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Inspire-Wholebody  --robot_type g129 --enable_inspire_dds 
+# python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G129-Inspire-Wholebody  --robot_type g129 --enable_inspire_dds
+# python sim_main.py --device cpu  --enable_cameras  --task Isaac-Move-Cylinder-G123-Brainco-Wholebody  --robot_type g123 --enable_brainco_dds --model_path assets/model/policy-23dof.onnx
 
 
 # python sim_main.py --device cpu  --enable_cameras  --task Isaac-PickPlace-Cylinder-H12-27dof-Inspire-Joint  --enable_inspire_dds --robot_type h1_2

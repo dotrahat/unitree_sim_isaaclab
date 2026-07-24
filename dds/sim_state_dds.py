@@ -31,9 +31,11 @@ class SimStateDDS(DDSObject):
         self.sim_state = std_msgs_msg_dds__String_()
 
         # setup the shared memory
+        # sized generously (256 KB) because multiobject/deformable tasks serialize several
+        # rigid objects plus a deformable body's full nodal state, which can be tens of KB
         self.setup_shared_memory(
             input_shm_name="isaac_sim_state",  # read sim state data for publishing
-            input_size=4096,
+            input_size=262144,
             outputshm_flag=False
         )
 

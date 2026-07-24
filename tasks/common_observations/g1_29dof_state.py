@@ -83,6 +83,7 @@ def get_robot_arm_joint_names() -> list[str]:
 # global variable to cache the DDS instance
 from dds.dds_master import dds_manager
 _g1_robot_dds = None
+_robot_dds_key = "g129"
 _dds_initialized = False
 
 # 观测缓存：索引张量与DDS限速（50FPS）+ 预分配缓冲
@@ -109,7 +110,7 @@ _imu_acc_cache = {
 
 def _get_g1_robot_dds_instance():
     """get the DDS instance, delay initialization"""
-    global _g1_robot_dds, _dds_initialized
+    global _g1_robot_dds, _robot_dds_key, _dds_initialized
     
     if not _dds_initialized or _g1_robot_dds is None:
         try:
@@ -117,15 +118,18 @@ def _get_g1_robot_dds_instance():
             sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dds'))
             from dds.dds_master import dds_manager
             print(f"dds_manager: {dds_manager}")
-            _g1_robot_dds = dds_manager.get_object("g129")
+            for key in ("g129", "g123"):
+                _g1_robot_dds = dds_manager.get_object(key)
+                if _g1_robot_dds is not None:
+                    _robot_dds_key = key
+                    break
             print("[g1_state] G1 robot DDS communication instance obtained")
-            
-            # register the cleanup function
+
             import atexit
             def cleanup_dds():
                 try:
                     if _g1_robot_dds:
-                        dds_manager.unregister_object("g129")
+                        dds_manager.unregister_object(_robot_dds_key)
                         print("[g1_state] DDS communication closed correctly")
                 except Exception as e:
                     print(f"[g1_state] Error closing DDS: {e}")
