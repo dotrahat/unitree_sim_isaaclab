@@ -86,8 +86,20 @@ AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
 
-if args_cli.enable_dex3_dds and args_cli.enable_dex1_dds and args_cli.enable_inspire_dds and args_cli.enable_brainco_dds:
-    print("Error: enable_dex3_dds and enable_dex1_dds and enable_inspire_dds and enable_brainco_dds cannot be enabled at the same time")
+# At most ONE hand DDS may be enabled. This must count, not `and` the flags together:
+# `and` only fires when every hand is enabled, so any two-hand combination used to pass
+# the check silently. It then failed deep and mutely -- create_dds_objects() registers on
+# an if/elif chain, so only the first hand gets a DDS object, while the action provider
+# still builds the second hand's joint mapping and finds its DDS handle None at runtime.
+_enabled_hand_dds = {
+    "enable_dex1_dds": args_cli.enable_dex1_dds,
+    "enable_dex3_dds": args_cli.enable_dex3_dds,
+    "enable_inspire_dds": args_cli.enable_inspire_dds,
+    "enable_brainco_dds": args_cli.enable_brainco_dds,
+}
+_active_hand_dds = [name for name, enabled in _enabled_hand_dds.items() if enabled]
+if len(_active_hand_dds) > 1:
+    print(f"Error: only one hand DDS may be enabled at a time, got: {', '.join(_active_hand_dds)}")
     print("Please select one of the options")
     sys.exit(1)
 
