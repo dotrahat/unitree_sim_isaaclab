@@ -176,16 +176,19 @@ class DDSActionProvider(ActionProvider):
             }
         if self.enable_brainco:
             # Combined 12-motor format: left[0-5] + right[6-11]
-            # Order: [thumb_metacarpal, thumb_proximal, index, middle, ring, pinky]
+            # Hardware motor order: [thumb, thumb-aux, index, middle, ring, pinky], where
+            # motor 0 (thumb) is thumb FLEXION = thumb_proximal_joint and motor 1 (thumb-aux)
+            # is thumb ROTATION/opposition = thumb_metacarpal_joint (verified on hardware;
+            # see xr_teleoperate/teleop/robot_control/hand_retargeting.py).
             self.brainco_hand_joint_mapping = {
-                "left_thumb_metacarpal_joint": 0,
-                "left_thumb_proximal_joint":   1,
+                "left_thumb_proximal_joint":   0,
+                "left_thumb_metacarpal_joint": 1,
                 "left_index_proximal_joint":   2,
                 "left_middle_proximal_joint":  3,
                 "left_ring_proximal_joint":    4,
                 "left_pinky_proximal_joint":   5,
-                "right_thumb_metacarpal_joint": 6,
-                "right_thumb_proximal_joint":   7,
+                "right_thumb_proximal_joint":   6,
+                "right_thumb_metacarpal_joint": 7,
                 "right_index_proximal_joint":   8,
                 "right_middle_proximal_joint":  9,
                 "right_ring_proximal_joint":   10,
@@ -198,12 +201,12 @@ class DDSActionProvider(ActionProvider):
             _FINGER_SCALE = 1.693 / 1.4661
             _THUMB_SCALE  = 1.0
             self.brainco_special_joint_mapping = {
-                "left_thumb_distal_joint":   [1,  _THUMB_SCALE],
+                "left_thumb_distal_joint":   [0,  _THUMB_SCALE],
                 "left_index_distal_joint":   [2,  _FINGER_SCALE],
                 "left_middle_distal_joint":  [3,  _FINGER_SCALE],
                 "left_ring_distal_joint":    [4,  _FINGER_SCALE],
                 "left_pinky_distal_joint":   [5,  _FINGER_SCALE],
-                "right_thumb_distal_joint":  [7,  _THUMB_SCALE],
+                "right_thumb_distal_joint":  [6,  _THUMB_SCALE],
                 "right_index_distal_joint":  [8,  _FINGER_SCALE],
                 "right_middle_distal_joint": [9,  _FINGER_SCALE],
                 "right_ring_distal_joint":   [10, _FINGER_SCALE],

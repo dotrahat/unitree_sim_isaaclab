@@ -7,8 +7,8 @@ Reads 12 motor-driving joint positions from the robot, publishes them to the
 BrainCo DDS shared memory so brainco_dds.py can forward them to xr_teleoperate.
 
 Combined 12-motor format written to shared memory (left[0-5] + right[6-11]):
-  0 / 6  : thumb_metacarpal_joint
-  1 / 7  : thumb_proximal_joint
+  0 / 6  : thumb_proximal_joint    (motor "thumb":     thumb flexion)
+  1 / 7  : thumb_metacarpal_joint  (motor "thumb-aux": thumb rotation)
   2 / 8  : index_proximal_joint
   3 / 9  : middle_proximal_joint
   4 / 10 : ring_proximal_joint
@@ -28,14 +28,14 @@ if TYPE_CHECKING:
 
 # Joint names in the combined 12-motor order used by brainco_dds.py
 _BRAINCO_MOTOR_JOINT_NAMES = [
-    "left_thumb_metacarpal_joint",   # motor 0
-    "left_thumb_proximal_joint",     # motor 1
+    "left_thumb_proximal_joint",     # motor 0 (thumb: flexion)
+    "left_thumb_metacarpal_joint",   # motor 1 (thumb-aux: rotation)
     "left_index_proximal_joint",     # motor 2
     "left_middle_proximal_joint",    # motor 3
     "left_ring_proximal_joint",      # motor 4
     "left_pinky_proximal_joint",     # motor 5
-    "right_thumb_metacarpal_joint",  # motor 6
-    "right_thumb_proximal_joint",    # motor 7
+    "right_thumb_proximal_joint",    # motor 6 (thumb: flexion)
+    "right_thumb_metacarpal_joint",  # motor 7 (thumb-aux: rotation)
     "right_index_proximal_joint",    # motor 8
     "right_middle_proximal_joint",   # motor 9
     "right_ring_proximal_joint",     # motor 10

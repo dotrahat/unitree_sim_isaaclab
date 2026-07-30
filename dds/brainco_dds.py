@@ -12,8 +12,8 @@ Normalization convention (matches brainco hardware official docs):
   0.0 = fully open, 1.0 = fully closed
 
 Combined 12-motor internal format (left[0-5] + right[6-11]):
-  Idx  0 / 6  : thumb_metacarpal   range [0, 1.52]   rad
-  Idx  1 / 7  : thumb_proximal     range [0, 1.0472] rad
+  Idx  0 / 6  : thumb_proximal     range [0, 1.0472] rad  (motor "thumb":     flexion)
+  Idx  1 / 7  : thumb_metacarpal   range [0, 1.52]   rad  (motor "thumb-aux": rotation)
   Idx  2 / 8  : index_proximal     range [0, 1.4661] rad
   Idx  3 / 9  : middle_proximal    range [0, 1.4661] rad
   Idx  4 / 10 : ring_proximal      range [0, 1.4661] rad
@@ -29,18 +29,18 @@ from unitree_sdk2py.idl.default import unitree_go_msg_dds__MotorCmd_, unitree_go
 import numpy as np
 
 # Joint angle ranges (sim/URDF limits) for the 12 combined motors
-# Index: [left_thumb_meta, left_thumb_prox, left_idx, left_mid, left_ring, left_pinky,
-#         right_thumb_meta, right_thumb_prox, right_idx, right_mid, right_ring, right_pinky]
+# Index: [left_thumb_prox, left_thumb_meta, left_idx, left_mid, left_ring, left_pinky,
+#         right_thumb_prox, right_thumb_meta, right_idx, right_mid, right_ring, right_pinky]
 _MOTOR_MIN = [0.0] * 12
 _MOTOR_MAX = [
-    1.52,    # 0  left  thumb_metacarpal
-    1.0472,  # 1  left  thumb_proximal
+    1.0472,  # 0  left  thumb_proximal   (motor "thumb")
+    1.52,    # 1  left  thumb_metacarpal (motor "thumb-aux")
     1.4661,  # 2  left  index_proximal
     1.4661,  # 3  left  middle_proximal
     1.4661,  # 4  left  ring_proximal
     1.4661,  # 5  left  pinky_proximal
-    1.52,    # 6  right thumb_metacarpal
-    1.0472,  # 7  right thumb_proximal
+    1.0472,  # 6  right thumb_proximal   (motor "thumb")
+    1.52,    # 7  right thumb_metacarpal (motor "thumb-aux")
     1.4661,  # 8  right index_proximal
     1.4661,  # 9  right middle_proximal
     1.4661,  # 10 right ring_proximal
