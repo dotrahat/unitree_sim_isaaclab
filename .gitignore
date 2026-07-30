@@ -122,3 +122,15 @@ data/
 assets/
 assets.*
 assets
+
+# ================================
+# One-off URDF->USD conversion scripts
+# ================================
+# Near-identical per-robot copies of tools/convert_urdf.py, run by hand to produce the
+# USDs under assets/ (itself ignored). Kept locally, not tracked: the conversion
+# parameters that matter are recorded in robots/unitree.py alongside each config.
+tools/convert_urdf_g123_brainco.py
+tools/convert_urdf_g123_mode10_brainco.py
+tools/convert_urdf_g123_mode10_brainco_wholebody.py
+tools/convert_urdf_g129_brainco.py
+tools/convert_urdf_g129_dex3.py
