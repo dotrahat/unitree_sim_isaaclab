@@ -37,6 +37,9 @@ parser.add_argument("--enable_dex3_dds", action="store_true", help="enable dexte
 parser.add_argument("--enable_inspire_dds", action="store_true", help="enable inspire hand DDS")
 parser.add_argument("--enable_brainco_dds",  action="store_true", help="enable BrainCo Revo2 hand DDS")
 parser.add_argument("--stats_interval", type=float, default=10.0, help="statistics print interval (seconds)")
+parser.add_argument("--debug_action_provider", action="store_true", default=False,
+                    help="print per-step action provider diagnostics (joint tracking, policy obs breakdown, "
+                         "startup gains/mass). Off by default: these run in the control hot path.")
 
 parser.add_argument("--file_path", type=str, default="/home/unitree/Code/xr_teleoperate/teleop/utils/data", help="file path (when action_source=file)")
 parser.add_argument("--generate_data_dir", type=str, default="./data", help="save data dir")

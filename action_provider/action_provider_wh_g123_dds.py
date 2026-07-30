@@ -111,6 +111,9 @@ class DDSRLActionProviderG123(ActionProvider):
         super().__init__("DDSActionProviderG123Wholebody")
         self.enable_robot = args_cli.robot_type
         self.enable_brainco = args_cli.enable_brainco_dds
+        # All diagnostics below are opt-in (--debug_action_provider). They run inside the
+        # control step: the per-step stashes alone are 6 device tensor detaches per step.
+        self.debug = getattr(args_cli, "debug_action_provider", False)
         self.policy_path = f"{project_root}/" + args_cli.model_path
         self.env = env
 
@@ -145,7 +148,8 @@ class DDSRLActionProviderG123(ActionProvider):
             )
         except (ValueError, AttributeError):
             self._foot_body_idx = None
-        self._log_startup_state()
+        if self.debug:
+            self._log_startup_state()
 
     def _log_startup_state(self):
         robot = self.env.scene["robot"]
@@ -370,13 +374,15 @@ class DDSRLActionProviderG123(ActionProvider):
         qj_obs = qj - self._default_joint_pos_t
         dqj_obs = dqj
 
-        # stashed for _log_dense_joint_state -- see DENSE_JOINT_LOG_STEPS
-        self._dbg_ang_vel = ang_vel.detach()
-        self._dbg_gravity = gravity_orientation.detach()
-        self._dbg_command = command.detach()
-        self._dbg_phase = sin_cos_phase.detach()
-        self._dbg_qj_obs = qj_obs.detach()
-        self._dbg_dqj_obs = dqj_obs.detach()
+        # stashed for _log_dense_joint_state -- see DENSE_JOINT_LOG_STEPS.
+        # Only under --debug_action_provider: this is per control step.
+        if self.debug:
+            self._dbg_ang_vel = ang_vel.detach()
+            self._dbg_gravity = gravity_orientation.detach()
+            self._dbg_command = command.detach()
+            self._dbg_phase = sin_cos_phase.detach()
+            self._dbg_qj_obs = qj_obs.detach()
+            self._dbg_dqj_obs = dqj_obs.detach()
 
         obs = torch.cat([ang_vel, gravity_orientation, command, sin_cos_phase, qj_obs, dqj_obs, self._last_action])
         return obs.unsqueeze(0)
@@ -456,7 +462,8 @@ class DDSRLActionProviderG123(ActionProvider):
             self._apply_brainco_override(full_action)
 
             self._log_counter += 1
-            if self._log_counter <= self._log_dense_until or self._log_counter % self._log_interval == 0:
+            if self.debug and (self._log_counter <= self._log_dense_until
+                               or self._log_counter % self._log_interval == 0):
                 self._log_step_state(targets[: self.NUM_LEG_WAIST])
 
             for _ in range(4):
@@ -465,7 +472,7 @@ class DDSRLActionProviderG123(ActionProvider):
                 self.env.sim.step(render=False)
                 self.env.scene.update(dt=self.env.physics_dt)
 
-            if self._log_counter <= self.DENSE_JOINT_LOG_STEPS:
+            if self.debug and self._log_counter <= self.DENSE_JOINT_LOG_STEPS:
                 self._log_dense_joint_state(raw_action, targets)
 
             self.env.sim.render()

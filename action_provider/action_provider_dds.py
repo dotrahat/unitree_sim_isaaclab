@@ -14,6 +14,7 @@ class DDSActionProvider(ActionProvider):
         self.enable_dex3 = args_cli.enable_dex3_dds
         self.enable_inspire = args_cli.enable_inspire_dds
         self.enable_brainco = args_cli.enable_brainco_dds
+        self.debug = getattr(args_cli, "debug_action_provider", False)
         self.env = env
         # Initialize DDS communication
         self.robot_dds = None
@@ -297,15 +298,16 @@ class DDSActionProvider(ActionProvider):
                         arm_vals = self._positions_buf.index_select(0, self._arm_source_idx_t)
                         full_action.index_copy_(0, self._arm_target_idx_t, arm_vals)
                         # [DBG-G123] trace vertical tracking on the sim side
-                        self._dbg_count = getattr(self, "_dbg_count", 0) + 1
-                        if self._dbg_count % 30 == 0:
-                            jn = self.all_joint_names
-                            lsp = self.joint_to_index["left_shoulder_pitch_joint"]
-                            lel = self.joint_to_index["left_elbow_joint"]
-                            actual = self.env.scene["robot"].data.joint_pos[0]
-                            print(f"[DBG-G123 SIM] recv cmd: Lshp(pos[15])={positions[15]:+.3f} Lelbow(pos[18])={positions[18]:+.3f} "
-                                  f"| applied target Lshp={full_action[lsp].item():+.3f} Lelbow={full_action[lel].item():+.3f} "
-                                  f"| actual Lshp={actual[lsp].item():+.3f} Lelbow={actual[lel].item():+.3f}", flush=True)
+                        # (--debug_action_provider only: this is the control hot path)
+                        if self.debug:
+                            self._dbg_count = getattr(self, "_dbg_count", 0) + 1
+                            if self._dbg_count % 30 == 0:
+                                lsp = self.joint_to_index["left_shoulder_pitch_joint"]
+                                lel = self.joint_to_index["left_elbow_joint"]
+                                actual = self.env.scene["robot"].data.joint_pos[0]
+                                print(f"[DBG-G123 SIM] recv cmd: Lshp(pos[15])={positions[15]:+.3f} Lelbow(pos[18])={positions[18]:+.3f} "
+                                      f"| applied target Lshp={full_action[lsp].item():+.3f} Lelbow={full_action[lel].item():+.3f} "
+                                      f"| actual Lshp={actual[lsp].item():+.3f} Lelbow={actual[lel].item():+.3f}", flush=True)
             elif self.enable_robot == "h1_2" and self.robot_dds:
                 cmd_data = self.robot_dds.get_robot_command()
                 if cmd_data and 'motor_cmd' in cmd_data:
