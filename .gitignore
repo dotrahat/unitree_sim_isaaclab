@@ -123,6 +123,9 @@ assets/
 assets.*
 assets
 
+${data}
+*.etli
+
 # ================================
 # One-off URDF->USD conversion scripts
 # ================================
