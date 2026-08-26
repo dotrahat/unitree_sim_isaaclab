@@ -213,6 +213,7 @@ def main():
     # TOTAL, REACHABILITY and SERVO are always over IDENTICAL samples and the split
     # is internally consistent. pooled_task keeps every episode for the servo term.
     pooled_decomp = {}
+    pooled_reach = {}   # (arm) -> [(reach_mm, residual_mm)] across all target episodes
 
     for ep in eps:
         env = "sim" if ep["is_sim"] else "physical"
@@ -294,6 +295,7 @@ def main():
                 bias = d.mean(0)
                 reach = np.linalg.norm(Pd, axis=1) * 1000.0
                 mag = np.linalg.norm(d, axis=1)
+                pooled_reach.setdefault(side, []).append((reach, mag))
                 qs = np.quantile(reach, [0, .25, .5, .75, 1.0])
                 for i in range(4):
                     sel = (reach >= qs[i]) & (reach <= qs[i + 1])
@@ -370,7 +372,7 @@ def main():
             ik_reach_dependence=reach_rows,
             aggregate_joint=agg_joint, aggregate_taskspace=agg_task), f, indent=2)
 
-    make_plots(eps, agg_joint, pooled_task, pooled_decomp, reach_rows)
+    make_plots(eps, agg_joint, pooled_task, pooled_decomp, reach_rows, pooled_reach)
     print(f"wrote outputs to {OUT_DIR}")
 
 
@@ -389,7 +391,7 @@ def _style():
                          "grid.alpha": 0.3, "lines.linewidth": 2.4})
 
 
-def make_plots(eps, agg_joint, pooled_task, pooled_decomp, reach_rows):
+def make_plots(eps, agg_joint, pooled_task, pooled_decomp, reach_rows, pooled_reach):
     _style()
     tgt = [e for e in eps if e["included"] and e["has_target"]]
     inc = [e for e in eps if e["included"]]
@@ -397,7 +399,7 @@ def make_plots(eps, agg_joint, pooled_task, pooled_decomp, reach_rows):
     # ---- Plot 1: desired vs IK-achievable vs achieved palm height
     if tgt:
         e = max(tgt, key=lambda x: x["task"]["left"]["Pd"][:, 2].ptp())
-        fig, axes = plt.subplots(1, 2, figsize=(21, 8))
+        fig, axes = plt.subplots(1, 2, figsize=(21, 8), sharey=True)
         T = e["task"]; t = np.arange(e["n"]) * DT
         for ax, side in zip(axes, ("left", "right")):
             ax.plot(t, T[side]["Pd"][:, 2]*1000, color=COL["total"], ls="--",
@@ -489,20 +491,30 @@ def make_plots(eps, agg_joint, pooled_task, pooled_decomp, reach_rows):
                      f"all three terms over identical samples", fontsize=19)
         fig.tight_layout(); fig.savefig(f"{OUT_DIR}/plot4_decomposition.png"); plt.close(fig)
 
-    # ---- Plot 5: IK residual vs reach distance
-    if reach_rows:
-        fig, ax = plt.subplots(figsize=(13, 8))
-        for side, mk in (("left", "o"), ("right", "s")):
-            rr = [r for r in reach_rows if r["arm"] == side]
-            xc = [(r["reach_lo_mm"] + r["reach_hi_mm"]) / 2 for r in rr]
-            ax.plot(xc, [r["ik_residual_median_mm"] for r in rr], marker=mk, ms=11,
-                    color=COL["reachability"] if side == "left" else COL["total"],
-                    label=f"{side} arm (median)")
+    # ---- Plot 5: IK residual vs reach distance, pooled over every target episode.
+    # Binning must be done on the POOLED samples: plotting each session's quartiles as one
+    # connected series makes the line double back on itself and reads as noise.
+    if pooled_reach:
+        fig, ax = plt.subplots(figsize=(13.5, 8))
+        NBIN = 8
+        for side, mk, c in (("left", "o", COL["reachability"]), ("right", "s", COL["total"])):
+            reach = np.concatenate([a[0] for a in pooled_reach[side]])
+            mag   = np.concatenate([a[1] for a in pooled_reach[side]])
+            edges = np.quantile(reach, np.linspace(0, 1, NBIN + 1))
+            xc, med, lo, hi = [], [], [], []
+            for i in range(NBIN):
+                sel = (reach >= edges[i]) & (reach <= edges[i + 1])
+                if sel.sum() < 20: continue
+                xc.append(np.median(reach[sel])); med.append(np.median(mag[sel]))
+                lo.append(np.percentile(mag[sel], 25)); hi.append(np.percentile(mag[sel], 75))
+            ax.fill_between(xc, lo, hi, color=c, alpha=0.16)
+            ax.plot(xc, med, marker=mk, ms=10, color=c,
+                    label=f"{side} arm — median (band = IQR), n={reach.size:,}")
         ax.set_xlabel("distance of the requested pose from the waist [mm]")
         ax.set_ylabel("IK reachability residual [mm]")
-        ax.set_title("The 5-DoF limit is real: the error grows with reach\n"
-                     "(a constant frame offset would be flat)", fontsize=19)
-        ax.legend()
+        ax.set_title("The 5-DoF limit is real: the error grows with how far you reach\n"
+                     "(a constant frame offset would be a flat line)", fontsize=19)
+        ax.legend(fontsize=14)
         fig.tight_layout(); fig.savefig(f"{OUT_DIR}/plot5_ik_vs_reach.png"); plt.close(fig)
 
 

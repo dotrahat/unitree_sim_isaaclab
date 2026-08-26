@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-26T16:41:25",
+  "generated": "2026-08-26T16:50:31",
   "data_root": "/home/cvl/xr_teleoperate/teleop/utils/data/pick cube",
   "fk_urdf": "/home/cvl/xr_teleoperate/assets/g1/mode10/g1_23dof_mode_10_with_brainco.urdf",
   "assumed_sample_rate_hz": 30.0,
