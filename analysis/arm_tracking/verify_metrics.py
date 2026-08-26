@@ -59,9 +59,18 @@ print(f"  palm distance from pelvis over 400 random configs: {d.min()*1000:.0f}-
 
 print(); print("="*78); print("RECOMPUTED vs COMMITTED CSV"); print("="*78)
 csv_joint = {(r["env"],r["arm"],r["joint"],r["window"]): r for r in csv.DictReader(open(f"{OUT}/metrics_aggregate_joint.csv"))}
-csv_palm  = {(r["env"],r["arm"]): r for r in csv.DictReader(open(f"{OUT}/metrics_aggregate_palm.csv"))}
+csv_task  = {(r["env"],r["arm"],r["error_term"]): r for r in csv.DictReader(open(f"{OUT}/metrics_aggregate_taskspace.csv"))}
 JN = ["shoulder_pitch","shoulder_roll","shoulder_yaw","elbow","wrist_roll"]
-GRP = {"physical":["episode_0022"], "sim":["episode_0023","episode_0024"]}
+# groups must mirror arm_tracking_analysis.py: the servo term pools every natively-5+5
+# episode; total/reachability exist only where wrist targets were recorded.
+GRP  = {"physical":["episode_0022","episode_0025","episode_0026"],
+        "sim":["episode_0023","episode_0024"]}
+TGT  = {"physical":["episode_0025","episode_0026"], "sim":[]}
+
+def targets(ep, side):
+    items = json.load(open(f"{D}/{ep}/data.json"))["data"]
+    T = np.array([it["actions"][f"{side}_wrist_target_SE3"] for it in items], float).reshape(-1,4,4)
+    return T[:,:3,3], T[:,:3,:3]
 
 bad = 0
 for env, eps in GRP.items():
@@ -77,29 +86,42 @@ for env, eps in GRP.items():
                 theirs = float(ref[f"{name}_deg"])
                 if abs(mine-theirs) > 1e-9: bad += 1; print(f"  MISMATCH {env} {side} {JN[j]} {name}: {mine} vs {theirs}")
             if int(ref["n_samples"]) != e_all.size: bad += 1; print(f"  MISMATCH n {env} {side} {JN[j]}")
-        # ---- palm stats, recomputed
-        dps, dos, dzs = [], [], []
-        for S,A in Ss:
-            Pc,Rc = fk(A,side); Pm,Rm = fk(S,side)
-            dps.append(np.linalg.norm(Pm-Pc,axis=1)*1000)
-            Rrel = np.einsum("nji,njk->nik",Rc,Rm)
-            dos.append(np.degrees(np.arccos(np.clip((np.trace(Rrel,axis1=1,axis2=2)-1)/2,-1,1))))
-            dzs.append((Pc[:,2]-Pm[:,2])*1000)
-        dp=np.concatenate(dps); do=np.concatenate(dos); dz=np.concatenate(dzs)
-        ref = csv_palm[(env,side)]
-        for name, mine in (("pos_mae_mm",dp.mean()), ("pos_rms_mm",np.sqrt((dp**2).mean())),
-                           ("pos_p95_mm",np.percentile(dp,95)), ("pos_max_mm",dp.max()),
-                           ("ori_mae_deg",do.mean()), ("ori_p95_deg",np.percentile(do,95)),
-                           ("z_shortfall_mean_mm",dz.mean()), ("z_shortfall_max_mm",dz.max())):
-            theirs = float(ref[name])
-            if abs(mine-theirs) > 1e-9: bad += 1; print(f"  MISMATCH {env} {side} {name}: {mine} vs {theirs}")
-        print(f"  {env:9}{side:6} recomputed palm: MAE {dp.mean():6.2f} mm  p95 {np.percentile(dp,95):6.2f}  "
-              f"max {dp.max():6.2f}  ori MAE {do.mean():5.2f} deg  n={dp.size}")
+        # ---- task-space stats, recomputed, position and orientation kept separate
+        def agg(term, eps_list):
+            dps, dos = [], []
+            for e in eps_list:
+                S,A = raw(e)
+                Pi,Ri = fk(A,side); Pa,Ra = fk(S,side)
+                if term == "servo":   Pf,Rf,Pt,Rt = Pi,Ri,Pa,Ra
+                else:
+                    Pd,Rd = targets(e, side)
+                    Pf,Rf,Pt,Rt = (Pd,Rd,Pa,Ra) if term=="total" else (Pd,Rd,Pi,Ri)
+                dps.append(np.linalg.norm(Pt-Pf,axis=1)*1000)
+                Rrel = np.einsum("nji,njk->nik",Rf,Rt)
+                dos.append(np.degrees(np.arccos(np.clip((np.trace(Rrel,axis1=1,axis2=2)-1)/2,-1,1))))
+            return np.concatenate(dps), np.concatenate(dos)
+
+        for term, src in (("servo", eps), ("total", TGT[env]), ("reachability", TGT[env])):
+            if not src: continue
+            dp, do = agg(term, src)
+            ref = csv_task[(env, side, term)]
+            for name, mine in (("pos_median_mm",np.median(dp)), ("pos_mean_mm",dp.mean()),
+                               ("pos_rms_mm",np.sqrt((dp**2).mean())),
+                               ("pos_p95_mm",np.percentile(dp,95)), ("pos_max_mm",dp.max()),
+                               ("ori_median_deg",np.median(do)), ("ori_mean_deg",do.mean()),
+                               ("ori_p95_deg",np.percentile(do,95)), ("ori_max_deg",do.max())):
+                theirs = float(ref[name])
+                if abs(mine-theirs) > 1e-9:
+                    bad += 1; print(f"  MISMATCH {env} {side} {term} {name}: {mine} vs {theirs}")
+            if int(ref["n_samples"]) != dp.size:
+                bad += 1; print(f"  MISMATCH n {env} {side} {term}: {dp.size} vs {ref['n_samples']}")
+            print(f"  {env:9}{side:6}{term:14} POS med {np.median(dp):7.2f} p95 {np.percentile(dp,95):7.2f} mm"
+                  f" | ORI med {np.median(do):6.2f} p95 {np.percentile(do,95):6.2f} deg  n={dp.size}")
 
 print(f"\n  >>> {'ALL AGGREGATE VALUES MATCH THE CSV EXACTLY' if bad==0 else f'{bad} MISMATCHES'} <<<")
 if bad: sys.exit(1)
 
-# ---- pooled physical headline, recomputed
+# ---- pooled physical servo headline, recomputed
 S,A = raw("episode_0022"); allp=[]
 for side,off in (("left",0),("right",5)):
     Pc,_=fk(A,side); Pm,_=fk(S,side); allp.append(np.linalg.norm(Pm-Pc,axis=1)*1000)
