@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XR Teleop Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --paper:#f5f5f5; --ink:#2d3142; --muted:#4f5d75; --soft:#7a8399; --accent:#eb6c36; --link:#2e5aa8;
+      --rule:rgba(45,49,66,0.12);
+      --sans:'Geist', system-ui, sans-serif; --serif:'Instrument Serif', serif; --mono:'Geist Mono', ui-monospace, monospace;
+    }
+    body { font-family:var(--sans); background:var(--paper); color:var(--ink); padding:3rem 2rem; }
+    .frame { max-width:1240px; margin:0 auto; }
+    .eyebrow { font-family:var(--mono); font-size:0.66rem; font-weight:500; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); margin-bottom:0.5rem; }
+    h1 { font-family:var(--serif); font-size:clamp(1.5rem, 2.4vw + 0.75rem, 2rem); font-weight:400; letter-spacing:-0.02em; line-height:1.15; margin-bottom:0.5rem; }
+    .sub { color:var(--muted); font-size:0.95rem; line-height:1.5; max-width:62rem; margin-bottom:1.75rem; }
+    .diagram { overflow-x:auto; }
+    svg { width:100%; min-width:960px; display:block; }
+    .cards { display:grid; grid-template-columns:1.2fr 1fr 0.9fr; gap:1rem; margin-top:2rem; }
+    .card { background:#fff; border:1px solid var(--rule); border-radius:6px; padding:1.25rem; }
+    .card .eyebrow { font-size:0.6rem; margin-bottom:0.6rem; }
+    .card-header { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem; }
+    .card-header h3 { font-size:0.95rem; font-weight:600; }
+    .dot { width:7px; height:7px; border-radius:50%; }
+    .dot.coral { background:var(--accent); } .dot.link { background:var(--link); } .dot.ink { background:var(--ink); }
+    ol, ul { padding-left:1.1rem; font-size:0.85rem; line-height:1.6; color:var(--ink); }
+    li + li { margin-top:0.3rem; }
+    code { font-family:var(--mono); font-size:0.78rem; color:var(--muted); }
+    .aside { font-family:var(--serif); font-style:italic; font-size:1.05rem; color:var(--muted); margin-top:1.5rem; max-width:52rem; }
+    footer { margin-top:2rem; padding-top:0.75rem; border-top:1px solid var(--rule); font-family:var(--mono); font-size:0.66rem; color:var(--soft); letter-spacing:0.06em; }
+    @media (max-width: 860px) { .cards { grid-template-columns:1fr; } body { padding:2rem 1rem; } }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · xr_teleoperate × unitree_sim_isaaclab × physical robot</p>
+    <h1>How an operator in XR drives a Unitree G1, simulated or real</h1>
+    <p class="sub">One teleop program, two interchangeable targets. <code>teleop_hand_and_arm.py</code> turns headset poses into joint commands and sends them over DDS, either to the Isaac Lab simulator (<code>--sim</code>, DDS domain 1) or to the physical G1 (default, DDS domain 0). Each target runs its own image server that streams camera video back to the operator.</p>
+
+    <div class="diagram">
+    <svg viewBox="0 24 1272 592" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="teleop-sim-arch-title teleop-sim-arch-desc">
+      <title id="teleop-sim-arch-title">XR teleoperation of a simulated or physical Unitree G1</title>
+      <desc id="teleop-sim-arch-desc">Architecture showing XR headset poses flowing through TeleVuer and IK to arm and hand controllers, which pass through a target decision set by the --sim flag, then send DDS commands either to the Isaac Lab simulator or to the physical Unitree G1; each target returns state over DDS and streams camera video back to the headset and image client.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+      </defs>
+      <rect y="24" width="1272" height="592" fill="#f5f5f5"/>
+  <rect x="864" y="80" width="384" height="128" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.14)" stroke-width="0.8"/>
+  <rect x="880" y="84" width="236" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="888" y="93" fill="rgba(45,49,66,0.6)" font-size="7" font-family="'Geist Mono', monospace" letter-spacing="0.14em">SIMULATION · UNITREE_SIM_ISAACLAB · --sim</text>
+  <rect x="176" y="232" width="1072" height="128" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.14)" stroke-width="0.8"/>
+  <rect x="192" y="236" width="176" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="200" y="245" fill="rgba(45,49,66,0.6)" font-size="7" font-family="'Geist Mono', monospace" letter-spacing="0.14em">XR_TELEOPERATE · OPERATOR PC</text>
+  <rect x="864" y="384" width="384" height="128" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.14)" stroke-width="0.8"/>
+  <rect x="880" y="388" width="150" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="888" y="397" fill="rgba(45,49,66,0.6)" font-size="7" font-family="'Geist Mono', monospace" letter-spacing="0.14em">PHYSICAL ROBOT · DEFAULT</text>
+  <path d="M152,304 H199" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <path d="M344,304 H391" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <path d="M536,304 H583" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <path d="M728,304 H767" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <path d="M800,272 V156 Q800,148 808,148 H887" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <path d="M800,336 V460 Q800,468 808,468 H887" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <path d="M888,176 H808 a 8,8 0 0,0 -16,0 H712 Q704,176 704,184 V263" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <path d="M888,440 H808 a 8,8 0 0,1 -16,0 H712 Q704,440 704,432 V345" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <path d="M1152,192 V263" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <path d="M1152,416 V345" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <path d="M1152,112 V64 Q1152,56 1144,56 H96 Q88,56 88,64 V263" fill="none" stroke="#2e5aa8" stroke-width="1.3" marker-end="url(#arrow-link)"/>
+  <path d="M1152,496 V528 Q1152,536 1144,536 H96 Q88,536 88,528 V345" fill="none" stroke="#2e5aa8" stroke-width="1.3" marker-end="url(#arrow-link)"/>
+  <rect x="158.0" y="284" width="36" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="176" y="293" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">POSES</text>
+  <rect x="350.0" y="284" width="36" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="368" y="293" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">WRISTS</text>
+  <rect x="540.0" y="284" width="40" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="560" y="293" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">JOINT q</text>
+  <rect x="738" y="210" width="56" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="790" y="219" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.06em">YES → SIM</text>
+  <rect x="732" y="390" width="62" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="790" y="399" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.06em">NO → ROBOT</text>
+  <rect x="828.0" y="158" width="36" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="846" y="167" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">STATE</text>
+  <rect x="828.0" y="450" width="36" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="846" y="459" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">STATE</text>
+  <rect x="1158" y="222" width="24" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="1162" y="231" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="start" letter-spacing="0.06em">ZMQ</text>
+  <rect x="1158" y="374" width="24" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="1162" y="383" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="start" letter-spacing="0.06em">ZMQ</text>
+  <rect x="446.0" y="36" width="148" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="520" y="45" fill="#2e5aa8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">WEBRTC · SIM CAMERA VIDEO</text>
+  <rect x="444.0" y="516" width="152" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="520" y="525" fill="#2e5aa8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">WEBRTC · HEAD CAMERA VIDEO</text>
+  <g>
+    <rect x="24" y="264" width="128" height="80" rx="6" fill="#f5f5f5"/>
+    <rect x="24" y="264" width="128" height="80" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+    <rect x="32" y="272" width="23" height="12" rx="2" fill="none" stroke="#7a8399" stroke-opacity="0.4" stroke-width="0.8"/>
+    <text x="43.5" y="281" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">XR</text>
+    <text x="88.0" y="310.0" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">XR headset</text>
+    <text x="88.0" y="326.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">WebXR browser</text>
+  </g>
+  <g>
+    <rect x="200" y="264" width="144" height="80" rx="6" fill="#f5f5f5"/>
+    <rect x="200" y="264" width="144" height="80" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <rect x="208" y="272" width="39" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.4" stroke-width="0.8"/>
+    <text x="227.5" y="281" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">INPUT</text>
+    <text x="272.0" y="310.0" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">TeleVuer</text>
+    <text x="272.0" y="326.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">head + hand poses</text>
+  </g>
+  <g>
+    <rect x="392" y="264" width="144" height="80" rx="6" fill="#f5f5f5"/>
+    <rect x="392" y="264" width="144" height="80" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <rect x="400" y="272" width="39" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.4" stroke-width="0.8"/>
+    <text x="419.5" y="281" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SOLVE</text>
+    <text x="464.0" y="310.0" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">IK & retargeting</text>
+    <text x="464.0" y="326.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">pinocchio · dex-retarget</text>
+  </g>
+  <g>
+    <rect x="584" y="264" width="144" height="80" rx="6" fill="#f5f5f5"/>
+    <rect x="584" y="264" width="144" height="80" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <rect x="592" y="272" width="50" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.4" stroke-width="0.8"/>
+    <text x="617.0" y="281" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">DDS I/O</text>
+    <text x="656.0" y="310.0" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Arm & hand ctrl</text>
+    <text x="656.0" y="326.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">robot_arm · robot_hand</text>
+  </g>
+  <g>
+    <polygon points="800,272 832,304 800,336 768,304" fill="#f5f5f5"/>
+    <polygon points="800,272 832,304 800,336 768,304" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+    <text x="800" y="303" fill="#2d3142" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Target?</text>
+    <text x="800" y="315" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">--sim</text>
+  </g>
+  <g>
+    <rect x="1080" y="264" width="144" height="80" rx="6" fill="#f5f5f5"/>
+    <rect x="1080" y="264" width="144" height="80" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <rect x="1088" y="272" width="39" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.4" stroke-width="0.8"/>
+    <text x="1107.5" y="281" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">VIDEO</text>
+    <text x="1152.0" y="310.0" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Image client</text>
+    <text x="1152.0" y="326.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">→ recorder, display</text>
+  </g>
+  <g>
+    <rect x="888" y="112" width="144" height="80" rx="6" fill="#f5f5f5"/>
+    <rect x="888" y="112" width="144" height="80" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <rect x="896" y="120" width="28" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.4" stroke-width="0.8"/>
+    <text x="910.0" y="129" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SIM</text>
+    <text x="960.0" y="158.0" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Isaac Lab sim</text>
+    <text x="960.0" y="174.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">rt/lowcmd · domain 1</text>
+  </g>
+  <g>
+    <rect x="1080" y="112" width="144" height="80" rx="6" fill="#f5f5f5"/>
+    <rect x="1080" y="112" width="144" height="80" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <rect x="1088" y="120" width="39" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.4" stroke-width="0.8"/>
+    <text x="1107.5" y="129" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">VIDEO</text>
+    <text x="1152.0" y="158.0" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Sim image server</text>
+    <text x="1152.0" y="174.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">shared-mem cameras</text>
+  </g>
+  <g>
+    <rect x="888" y="416" width="144" height="80" rx="6" fill="#f5f5f5"/>
+    <rect x="888" y="416" width="144" height="80" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <rect x="896" y="424" width="39" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.4" stroke-width="0.8"/>
+    <text x="915.5" y="433" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">ROBOT</text>
+    <text x="960.0" y="462.0" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Unitree G1</text>
+    <text x="960.0" y="478.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">rt/arm_sdk · domain 0</text>
+  </g>
+  <g>
+    <rect x="1080" y="416" width="144" height="80" rx="6" fill="#f5f5f5"/>
+    <rect x="1080" y="416" width="144" height="80" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <rect x="1088" y="424" width="39" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.4" stroke-width="0.8"/>
+    <text x="1107.5" y="433" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">VIDEO</text>
+    <text x="1152.0" y="462.0" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Robot image server</text>
+    <text x="1152.0" y="478.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">teleimager on PC2</text>
+  </g>
+  <line x1="24" y1="568" x2="1248" y2="568" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+  <text x="24" y="592" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
+  <path d="M100,589 H128" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="138" y="592" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">command / data flow</text>
+  <path d="M300,589 H328" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <text x="338" y="592" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">state feedback</text>
+  <path d="M500,589 H528" fill="none" stroke="#2e5aa8" stroke-width="1.3" marker-end="url(#arrow-link)"/>
+  <text x="538" y="592" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">video stream</text>
+  <rect x="700" y="583" width="20" height="12" rx="3" fill="rgba(235,108,54,0.08)" stroke="#eb6c36"/><text x="728" y="592" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">target decision (--sim)</text>
+  <rect x="900" y="583" width="20" height="12" rx="3" fill="rgba(79,93,117,0.10)" stroke="#7a8399"/><text x="928" y="592" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">operator input</text>
+    </svg>
+    </div>
+
+    <p class="aside">The simulator publishes the same DDS topics as the real robot. The controllers make one decision, sim or physical, from the <code>--sim</code> flag. The DDS domain and the arm topic follow from that choice. The rest of the pipeline stays the same.</p>
+
+    <div class="cards">
+      <div class="card">
+        <p class="eyebrow">Shared · every tick</p>
+        <div class="card-header"><span class="dot coral"></span><h3>Headset pose → joint commands</h3></div>
+        <ol>
+          <li><b>TeleVuer</b> reads head, wrist and hand poses (hand tracking or controllers).</li>
+          <li><b>Arm IK</b> (<code>robot_arm_ik.py</code>) solves both arms; <b>hand retargeting</b> maps fingers to Dex3 / Inspire / BrainCo / Dex1 joints.</li>
+          <li><b>Controllers</b> check the target (<code>--sim</code>), then publish arm + hand commands and read back <code>rt/lowstate</code> and hand state.</li>
+          <li><b>EpisodeWriter</b> (<code>--record</code>) saves images, states and actions for training, from either target.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Target · simulation (--sim)</p>
+        <div class="card-header"><span class="dot ink"></span><h3>unitree_sim_isaaclab</h3></div>
+        <ul>
+          <li>DDS domain 1. Arms on <code>rt/lowcmd</code>, hands on <code>rt/&lt;hand&gt;/…/cmd</code>.</li>
+          <li>Inside <code>sim_main.py</code>: DDS bridge → action provider → <code>RobotController.step()</code> → Isaac Lab task.</li>
+          <li>Extras: <code>rt/reset_pose/cmd</code> resets the scene, <code>rt/sim_state</code> goes into recordings, <code>rt/run_command/cmd</code> sets walking velocity for whole-body tasks.</li>
+          <li>Task cameras → shared memory → sim image server.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Target · physical robot</p>
+        <div class="card-header"><span class="dot link"></span><h3>Unitree G1</h3></div>
+        <ul>
+          <li>DDS domain 0 over the robot network (<code>--network-interface</code>).</li>
+          <li><code>--motion</code> (normal use): arms on <code>rt/arm_sdk</code>, and the robot's own balance controller stays on.</li>
+          <li><code>--debug-mode</code>: raw <code>rt/lowcmd</code>, with balance off.</li>
+          <li>Walking uses <code>LocoClient</code> / <code>MotionSwitcher</code> instead of <code>rt/run_command/cmd</code>.</li>
+          <li>Head cameras (UVC / RealSense) are served by teleimager on the robot's PC2.</li>
+        </ul>
+      </div>
+    </div>
+
+    <footer>Sources · xr_teleoperate/teleop/robot_control/ · xr_teleoperate/teleop/utils/motion_switcher.py · xr_teleoperate/teleop/teleop_hand_and_arm.py · unitree_sim_isaaclab/sim_main.py · dds/ · action_provider/ · layeredcontrol/ · teleimager/</footer>
+  </div>
+</body>
+</html>
