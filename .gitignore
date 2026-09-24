@@ -140,3 +140,6 @@ tools/convert_urdf_g129_dex3.py
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# graft's local repository settings — not committed.
+/.graft/
